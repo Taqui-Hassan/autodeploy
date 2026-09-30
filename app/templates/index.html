@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AutoDeploy Task Tracker</title>
+<style>
+  :root { --bg:#0f172a; --card:#1e293b; --text:#e2e8f0; --muted:#94a3b8; --accent:#38bdf8; }
+  * { box-sizing: border-box; }
+  body { margin:0; min-height:100vh; background:var(--bg); color:var(--text); font-family:system-ui,sans-serif; display:flex; justify-content:center; padding:48px 16px; }
+  main { width:100%; max-width:520px; }
+  h1 { margin:0 0 4px; font-size:28px; }
+  .sub { color:var(--muted); margin-bottom:24px; }
+  form { display:flex; gap:8px; margin-bottom:16px; }
+  input { flex:1; padding:12px; border-radius:8px; border:1px solid #334155; background:var(--card); color:var(--text); font-size:16px; }
+  button { padding:12px 18px; border:0; border-radius:8px; background:var(--accent); color:#0f172a; font-weight:600; cursor:pointer; }
+  ul { list-style:none; padding:0; margin:0; }
+  li { display:flex; align-items:center; gap:12px; background:var(--card); padding:12px 14px; border-radius:8px; margin-bottom:8px; }
+  li span { flex:1; cursor:pointer; }
+  li.done span { text-decoration:line-through; color:var(--muted); }
+  li button { background:transparent; color:var(--muted); padding:4px 8px; }
+  footer { margin-top:32px; text-align:center; color:var(--muted); font-size:13px; }
+  code { color:var(--accent); }
+</style>
+</head>
+<body>
+<main>
+  <h1>AutoDeploy Tasks</h1>
+  <div class="sub">Deployed automatically with GitHub Actions, Docker and Azure</div>
+  <form id="form">
+    <input id="title" placeholder="Add a task..." autocomplete="off">
+    <button>Add</button>
+  </form>
+  <ul id="list"></ul>
+  <footer>Running build <code>{{ version }}</code></footer>
+</main>
+<script>
+const list = document.getElementById("list");
+const form = document.getElementById("form");
+const title = document.getElementById("title");
+
+async function load() {
+  const res = await fetch("/api/tasks");
+  const tasks = await res.json();
+  list.innerHTML = "";
+  tasks.forEach(t => {
+    const li = document.createElement("li");
+    if (t.done) li.className = "done";
+    const span = document.createElement("span");
+    span.textContent = t.title;
+    span.onclick = async () => { await fetch(`/api/tasks/${t.id}/toggle`, {method:"PATCH"}); load(); };
+    const del = document.createElement("button");
+    del.textContent = "✕";
+    del.onclick = async () => { await fetch(`/api/tasks/${t.id}`, {method:"DELETE"}); load(); };
+    li.append(span, del);
+    list.append(li);
+  });
+}
+
+form.onsubmit = async e => {
+  e.preventDefault();
+  if (!title.value.trim()) return;
+  await fetch("/api/tasks", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({title:title.value})});
+  title.value = "";
+  load();
+};
+
+load();
+</script>
+</body>
+</html>
